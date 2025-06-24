@@ -1,0 +1,25 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the telemetry agent binary
+    cmds:
+      - go build -o bin/agent ./cmd/agent
+    silent: true
+
+  run:
+    desc: Run the telemetry agent (Hello World)
+    cmds:
+      - go run ./cmd/agent
+    silent: true
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test ./...
+    silent: true
+
+  clean:
+    desc: Remove built files
+    cmds:
+      - rm -rf bin/
