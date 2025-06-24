@@ -6,7 +6,19 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"telemetry-agent/internal/config"
 )
+
+/*
+* tasks:
+create a configuration file to read from which says which port to listen and which port to forward to.
+probably don't need the url
+record the time stamp of the url and store it in a log file or smth
+creating another file which runs the collector api. can probbaly just set it to port 555 or smth.
+so that the class can be easily imported. the configuration file will probably also have that setting
+wait maybe not, tho I think can be as long as the url of the official deployment data collector doesn't change
+*/
 
 // Create a reverse proxy to http://localhost:8081
 func newReverseProxy(targetPort string) *httputil.ReverseProxy {
@@ -78,6 +90,9 @@ func puppetStatusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	cfg, err := config.LoadConfig("config.yaml")
+	log.Println(cfg)
+	log.Println(err)
 	proxy := newReverseProxy(":8081")
 
 	// log.Println("Listening on :8080 and proxying to :8081")

@@ -10,7 +10,8 @@ tasks:
   run:
     desc: Run the telemetry agent (Hello World)
     cmds:
-      - go run ./cmd/agent
+      - go build -o bin/telemetry-agent.exe ./cmd/agent
+      - ./bin/telemetry-agent.exe
     silent: true
 
   test:

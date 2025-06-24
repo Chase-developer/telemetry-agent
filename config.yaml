@@ -1,0 +1,17 @@
+telemetry:
+  interfaces:
+    - eth0
+    - wlan0
+  protocols:
+    http: true
+    dns: true
+    icmp: false
+
+logging:
+  level: info
+  path: /var/log/dds-agent.log
+
+backend:
+  host: "http://localhost"
+  port: 8080
+  use_tls: false
