@@ -22,9 +22,11 @@ type Config struct {
 	} `yaml:"logging"`
 
 	Backend struct {
-		Host   string `yaml:"host"`
-		Port   int    `yaml:"port"`
-		UseTLS bool   `yaml:"use_tls"`
+		ListenHost  string `yaml:"listen_host"`
+		ListenPort  string `yaml:"listen_port"`
+		ForwardHost string `yaml:"forward_host"`
+		ForwardPort string `yaml:"forward_port"`
+		UseTLS      bool   `yaml:"tls"`
 	} `yaml:"backend"`
 }
 

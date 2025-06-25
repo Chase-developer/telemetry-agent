@@ -1,13 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 
 	"telemetry-agent/internal/config"
+	"telemetry-agent/internal/platform"
+	"telemetry-agent/internal/puppetapi"
+
+	"telemetry-agent/internal/tracker"
 )
 
 /*
@@ -21,8 +24,8 @@ wait maybe not, tho I think can be as long as the url of the official deployment
 */
 
 // Create a reverse proxy to http://localhost:8081
-func newReverseProxy(targetPort string) *httputil.ReverseProxy {
-	target, _ := url.Parse("http://localhost" + targetPort)
+func newReverseProxy(targetHost string, targetPort string) *httputil.ReverseProxy {
+	target, _ := url.Parse(targetHost + ":" + targetPort)
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
@@ -31,6 +34,7 @@ func newReverseProxy(targetPort string) *httputil.ReverseProxy {
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req) // preserve default behavior
 
+		tracker.Increment(req.URL.Path)
 		// 🛠 Modify headers or log
 		log.Printf("Proxying %s request to %s", req.Method, req.URL.String())
 
@@ -61,39 +65,11 @@ func newReverseProxy(targetPort string) *httputil.ReverseProxy {
 	return proxy
 }
 
-// --- Main App Handlers (Port 8080) ---
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Main: ", r.Method, r.URL.Path)
-	fmt.Fprintln(w, "Welcome to the Go server!")
-}
-
-func pingHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "pong")
-}
-
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	name := r.URL.Query().Get("name")
-	if name == "" {
-		name = "stranger"
-	}
-	fmt.Fprintf(w, "Hello, %s!\n", name)
-}
-
-// --- Puppet API Handlers (Port 8081) ---
-func puppetCommandHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("PuppetAPI: ", r.Method, r.URL.Path)
-	fmt.Fprintln(w, "Received puppet command")
-}
-
-func puppetStatusHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Puppet API status: OK")
-}
-
 func main() {
 	cfg, err := config.LoadConfig("config.yaml")
 	log.Println(cfg)
 	log.Println(err)
-	proxy := newReverseProxy(":8081")
+	proxy := newReverseProxy(cfg.Backend.ForwardHost, cfg.Backend.ForwardPort)
 
 	// log.Println("Listening on :8080 and proxying to :8081")
 	// err := http.ListenAndServe(":8080", proxy)
@@ -101,8 +77,9 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 	go func() {
-		log.Println("Listening on :8080 and proxying to :8081")
-		err := http.ListenAndServe(":8080", proxy)
+		log.Println("Listening on ", cfg.Backend.ListenHost+":"+cfg.Backend.ListenPort,
+			"and proxying to", cfg.Backend.ForwardHost+":"+cfg.Backend.ForwardPort)
+		err := http.ListenAndServe(":"+cfg.Backend.ListenPort, proxy)
 		if err != nil {
 			log.Fatal("Proxy error: ", err)
 		}
@@ -113,29 +90,33 @@ func main() {
 	// mainMux.HandleFunc("/ping", pingHandler)
 	// mainMux.HandleFunc("/hello", helloHandler)
 
-	puppetMux := http.NewServeMux()
-	puppetMux.HandleFunc("/cmd", puppetCommandHandler)
-	puppetMux.HandleFunc("/status", puppetStatusHandler)
-	puppetMux.HandleFunc("/", rootHandler)
-	puppetMux.HandleFunc("/ping", pingHandler)
-	puppetMux.HandleFunc("/hello", helloHandler)
+	// puppetMux := http.NewServeMux()
+	// puppetMux.HandleFunc("/cmd", puppetCommandHandler)
+	// puppetMux.HandleFunc("/status", puppetStatusHandler)
+	// puppetMux.HandleFunc("/", rootHandler)
+	// puppetMux.HandleFunc("/ping", pingHandler)
+	// puppetMux.HandleFunc("/hello", helloHandler)
 
 	// Start main server (port 8080)
 
 	// go func() {
-	// 	log.Println("Main app listening on http://localhost:8080")
-	// 	err := http.ListenAndServe(":8080", mainMux)
-	// 	if err != nil {
-	// 		log.Fatal("Main app error: ", err)
-	// 	}
-	// }()
-
+	puppetApi := puppetapi.NewPuppetAPI()
 	// Start puppet API server (port 8081)
 	go func() {
 		log.Println("Puppet API listening on http://localhost:8081")
-		err := http.ListenAndServe(":8081", puppetMux)
+		err := http.ListenAndServe(":"+cfg.Backend.ForwardPort, puppetApi)
 		if err != nil {
 			log.Fatal("Puppet API error: ", err)
+		}
+	}()
+
+	collectorApi := platform.NewCollectorApi()
+	// Start puppet API server (port 8081)
+	go func() {
+		log.Println("Collector API listening on http://localhost:8082")
+		err := http.ListenAndServe(":8082", collectorApi)
+		if err != nil {
+			log.Fatal("Collector API error: ", err)
 		}
 	}()
 
