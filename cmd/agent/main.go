@@ -34,7 +34,7 @@ func newReverseProxy(targetHost string, targetPort string) *httputil.ReverseProx
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req) // preserve default behavior
 
-		tracker.Increment(req.URL.Path)
+		tracker.Request(req.URL.Path, req.Method)
 		// 🛠 Modify headers or log
 		log.Printf("Proxying %s request to %s", req.Method, req.URL.String())
 
@@ -45,7 +45,7 @@ func newReverseProxy(targetHost string, targetPort string) *httputil.ReverseProx
 	// Intercept and inspect response
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Printf("Got response with status: %d from %s", resp.StatusCode, resp.Request.URL)
-
+		tracker.Response(resp.Request.URL.Path, resp.StatusCode)
 		// Example: Inject response header
 		//resp.Header.Set("X-Proxy-Processed", "yes")
 
