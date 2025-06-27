@@ -12,9 +12,9 @@ logging:
   path: /var/log/dds-agent.log
 
 backend:
-  listen_host: http://localhost
+  listen_host: localhost
   listen_port: 8080
-  forward_host: http://localhost
+  forward_host: localhost
   forward_port: 8081
   tls: false
 

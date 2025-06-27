@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"telemetry-agent/internal/config"
 )
 
 // --- Main App Handlers (Port 8080) ---
@@ -35,7 +36,7 @@ func puppetStatusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- Exported Router Constructor ---
-func NewPuppetAPI() *http.ServeMux {
+func newPuppetAPI() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/cmd", puppetCommandHandler)
 	mux.HandleFunc("/status", puppetStatusHandler)
@@ -43,4 +44,17 @@ func NewPuppetAPI() *http.ServeMux {
 	mux.HandleFunc("/ping", pingHandler)
 	mux.HandleFunc("/hello", helloHandler)
 	return mux
+}
+
+func Start(cfg *config.Config) {
+	puppetApi := newPuppetAPI()
+	address := fmt.Sprintf("%s:%s", cfg.Backend.ForwardHost, cfg.Backend.ForwardPort)
+	// Start puppet API server (port 8081)
+	go func() {
+		log.Printf("Puppet API listening on %s", address)
+		err := http.ListenAndServe(address, puppetApi)
+		if err != nil {
+			log.Fatal("Puppet API error: ", err)
+		}
+	}()
 }
